@@ -1,0 +1,339 @@
+// Binary Search Tree operations in C
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+typedef struct node {
+  int key;
+  int rank;
+  struct node *left, *right, *parent;
+}Node;
+
+// Create a node
+struct node *newNode(int item) {
+  struct node *temp = (struct node *)malloc(sizeof(struct node));
+  temp->key = item;
+  temp->rank =1;
+  temp->left = temp->right = temp->parent= NULL;
+  return temp;
+}
+
+// Inorder Traversal
+void inorder(struct node *root) {
+  if (root != NULL) {
+    inorder(root->left);
+    printf("%d (%d) -> ", root->key,root->rank);
+    inorder(root->right);
+  }
+}
+
+struct node* search(struct node* root, int key){
+     
+    struct node* curr = root;
+	while (curr != NULL && curr->key != key) {
+		if (key < curr->key)
+			curr = curr->left;
+		else
+			curr = curr->right;
+	}
+    return curr;
+}
+
+void rotateRight(Node* node, Node* par, int flag){//check here
+  Node* one = node;
+  Node* two = node->left;
+  Node* A = two->left;
+  Node* B = two->right;
+  Node* C = node->right;
+  two->right = one;
+  two->parent = par;
+  one->parent = two;
+  if(A) A->parent = two;
+  if(B) B->parent = one;
+  one->left = B;
+  one->right = C;
+  two->left = A;
+  if(flag)par->right = two;
+  else par->left = two;
+}
+
+void rotateLeft(Node* node, Node* par, int flag){
+  Node* one = node;
+  Node* two = node->right;
+  Node* B = two->left;
+  Node* C = two->right;
+  Node* A = node->left;
+  one->left = A;
+  one->right = B;
+  two->left = one;
+  two->right = C;
+  one->parent = two;
+  two->parent = par;
+  if(C) C->parent = two;
+  if(B) B->parent = one;
+  if(flag) par->right = two;
+  else par->left = two;
+}
+
+void rightleft(Node* node, Node* par, int flag){
+  Node* one = node;
+  Node* two = one->right;
+  Node* three = two->left;
+  rotateRight(two,one,1);
+  one->right = three;
+  three->parent = one;
+  rotateLeft(one,par,flag);
+}
+
+void leftright(Node* node, Node* par, int flag){
+  Node* one = node;
+  Node* two = one->left;
+  Node* three = two->right;
+  rotateLeft(two,one,0);
+  one->left = three;
+  three->parent = one;
+  rotateRight(one,par,flag);
+}
+
+Node* fix(Node* curr, Node* node){
+  struct node* p = curr->parent;
+  struct node* g = curr->parent->parent;
+  while(g){
+    if(g->rank==curr->rank){
+      // printf("%d %d\n",curr->key,g->key);
+      struct node* left_g = g->left;
+      struct node* right_g = g->right;
+      struct node* child = (left_g==p) ? right_g : left_g;
+      if(child && left_g->rank==right_g->rank) {
+        g->rank = g->rank+1;                                              ///// ERROR DETECTED
+        continue;
+      }else{
+        //there is possi of g not having parent handle here->create a fake node
+        // printf("%d %d\n",curr->key,g->key);
+        
+        struct node* g_par = g->parent;
+        int done = 0;
+        if(g_par == NULL){
+          done = 1;
+          g_par = newNode(-1);
+          g_par->right = g;
+        }
+        int flag = (g_par->right == g) ? 1 : 0;
+        if(g->right == p && p->left == curr){
+          rightleft(g,g_par,flag);
+        }
+        else if(g->left == p && p->right == curr){
+          leftright(g,g_par,flag);
+        }
+        else if(g->left == p && p->left == curr){
+          // printf("kdsf");
+          rotateRight(g,g_par,flag);
+        }else if(g->right == p && p->right == curr){
+          rotateLeft(g,g_par,flag);
+        }
+        if(flag) curr = g_par->right;
+        else curr = g_par->left;
+        if(done){
+          g_par->right = NULL;
+          free(g_par);
+          curr->parent = NULL;
+          node = curr;
+          break;
+        }
+      }
+      p = curr->parent;
+      if(p){
+        g = p->parent;
+        if(!g){
+          node = p;
+        }
+      }else{
+        node = curr;
+        break;
+      }
+    }else{
+      curr = p;
+      p = g;
+      g = g->parent;
+    }
+  }
+  return node;
+}
+
+// Insert a node
+struct node *insert(struct node *node, int key) {
+  // Return a new node if the tree is empty
+  if (node == NULL) return newNode(key);
+
+  struct node* curr  = node;
+  struct node* parent =NULL;
+  while(1){
+    while(curr && key<curr->key){
+          parent = curr;
+          curr = curr->left;
+          
+    }
+    while(curr && key>=curr->key){
+            parent = curr;
+            curr = curr->right;
+      }
+    if(curr==NULL){
+          curr= newNode(key);
+          if(key < parent->key) parent->left = curr;
+          else  parent->right = curr;
+          curr->parent = parent;
+          break;
+      }
+  }
+  return fix(curr, node);
+}
+//implement delete in free time
+
+Node* Join(Node* S1, int i, Node* S2){
+
+  if(S1==NULL && S2){
+        struct node* I  = newNode(i);
+        S2->parent =I;
+        I->rank = S2->rank+1;
+        I->right =S2;
+        return I;
+    }
+    else if(S2==NULL && S1){
+        struct node* I  = newNode(i);
+        S1->parent =I;
+        I->rank = S1->rank+1;
+        I->left =S1;
+        return I;
+    }
+    
+    else if (!S1 && !S2){
+      struct node* I  = newNode(i);
+       return I;
+    }
+
+  if(S1->rank >= S2->rank){
+    Node* curr = S1;
+    while(curr && curr->rank != S2->rank){
+      curr = curr->right;
+    }
+    Node* I = newNode(i);
+    I->rank = S2->rank + 1;
+    Node* t = curr->parent;
+    // printf("%d\n",t->key);
+    if(t) {t->right = I; I->parent = t;}
+    I->left = curr;
+    curr->parent = I;
+    I->right = S2;
+    S2->parent = I;
+    // inorder(I);
+    // printf("\n");
+    if(!t) return I;
+    else if(!(t->parent)) return S1;
+    return fix(I,S1);
+  }else{
+    Node* curr = S2;
+    while(curr && curr->rank != S1->rank){
+      curr = curr->left;
+    }
+    Node* I = newNode(i);
+    I->rank = S1->rank + 1;
+    Node* t = curr->parent;
+    if(t) {t->left = I; I->parent = t;}
+    I->right= curr;
+    curr->parent = I;
+    I->left = S1;
+    S1->parent = I;
+    if(!t) return I;
+    else if(!(t->parent)) return S2;
+    return fix(I,S2);
+  }
+}
+
+void Split(int i, Node* S, Node** S3, Node** S4){
+  Node* I = search(S,i);
+  Node* S1 = I->left;
+  Node* S2 = I->right;
+  if(I->left && I->left->parent) I->left->parent = NULL;
+  if(I->right && I->right->parent) I->right->parent = NULL;
+  I->left = I->right = NULL;
+  Node* x = I;
+  Node* p = I->parent;
+  // int stp = 1;
+  while(x->parent){
+    p = x->parent;
+    //null the pointer
+    if(x == p->left){
+      if(p->right) p->right->parent = NULL;
+      if(p->left) p->left->parent = NULL;
+      Node* temp = p->right;
+      p->left = NULL;
+      p->right = NULL;
+      S2 = Join(S2,p->key,temp);
+    }else{
+      if(p->left) p->left->parent = NULL;
+      if(p->right) p->right->parent = NULL;
+      Node* temp = p->left;
+      p->right = NULL;
+      p->left = NULL;
+      S1 = Join(temp,p->key,S1);
+    }
+    x = p;
+    // printf("%dkjhklhkjh\n",stp++);
+    // inorder(S1);
+    // printf("\n");
+    // inorder(S2);
+    // printf("\n");
+
+  }
+  *S3 = S1; *S4 = S2;
+}
+// Driver code
+int main() {
+
+
+  Node* S1 = NULL;
+  Node* S2 = NULL;
+  S1 = insert(S1, 3);
+  S1 = insert(S1, 1);
+  S1 = insert(S1, 4);
+  S1 = insert(S1, 5);
+  S1 = insert(S1, 9);
+  S1 = insert(S1, 2);
+  S1 = insert(S1, 6);
+  S1 = insert(S1, 7);
+  S1 = insert(S1, 8);
+//  inorder(S1);
+//   printf("\n");
+  S2 = insert(S2, 12);
+  S2 = insert(S2, 14);
+
+
+  //// printf("started joining\n");
+  
+  Node* ans = Join(S1,10,S2);
+  
+  // printf("Inorder traversal: ");
+  inorder(ans);
+  printf("\n");
+  // // //printf("fdfdsf\n");
+
+  Node* S3 = NULL;
+  Node* S4 = NULL;
+
+  Split(8,ans,&S3,&S4);
+  inorder(S3);
+  printf("\n");
+  inorder(S4);
+  printf("\n");
+  ans = Join(S3,8,S4);
+  inorder(ans);
+  printf("\n");
+  //// Node* t = search(root, 4);
+  //// printf("\n%d\n",t->parent->key);
+  //// root = deleteItr(root,3);
+  ////  inorder(root);
+  ////  root = deleteItr(root,9);
+  //  inorder(root);
+ return 0;
+}
